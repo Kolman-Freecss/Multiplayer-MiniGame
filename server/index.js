@@ -8,8 +8,13 @@ const app = express();
 
 //Supplied the app to the HTTP server, which allow express to handle the HTTP request.
 const server = require('http').Server(app);
-const { JSDOM } = jsdom;
+const Datauri = require('datauri');
  
+const datauri = new Datauri();
+const { JSDOM } = jsdom;
+
+	
+const io = require('socket.io').listen(server);
 
 
 //Updated the server to render our static files using the built-in  express.static middleware function in Express.
@@ -31,12 +36,22 @@ function setupAuthoritativePhaser() {
     resources: "usable",
     // So requestAnimatinFrame events fire
     pretendToBeVisual: true
-  }).then((dom) => {
+  }).then((dom) => { //When the server is ready we prepare it to the client.      IMPORTANT CONCEPT.
+
+    dom.window.URL.createObjectURL = (blob) => {
+      if (blob){
+        return datauri.format(blob.type, blob[Object.getOwnPropertySymbols(blob)[0]]._buffer).content;
+      }
+    };
+    dom.window.URL.revokeObjectURL = (objectURL) => {};
+
     dom.window.gameLoaded = () => {
       server.listen(8081, function () {
         console.log(`Listening on ${server.address().port}`);
       });
     };
+    //This will inject our socket.io instance into jsdom which will allow us to access it in our Phaser code that is running on the server
+    dom.window.io = io;
   }).catch((error) => {
     console.log(error.message);
   });
